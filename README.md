@@ -22,8 +22,16 @@ A Streamlit-based lead generation tool designed to identify businesses in Dubai 
 2. **Install dependencies**:
    Make sure you have Python 3.8+ installed.
    ```bash
-   pip install streamlit googlemaps pandas openpyxl
+   pip install streamlit googlemaps pandas openpyxl python-dotenv
    ```
+
+## ⚙️ Configuration
+
+The application uses a `.env` file for configuration. Create a file named `.env` in the root directory and add your Google Places API Key:
+
+```env
+GOOGLE_PLACES_API_KEY=your_api_key_here
+```
 
 ## 📋 Usage
 

@@ -3,6 +3,10 @@ import pandas as pd
 from scraper_service import ScraperService
 import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Page Config
 st.set_page_config(page_title="Dubai Business No-Website Scraper", page_icon="🏢", layout="wide")
@@ -14,7 +18,7 @@ st.markdown("Find businesses in Dubai that **do not have a website**.")
 # Sidebar for Config
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("Google Places API Key", type="password", value="AIzaSyDiClPAo5OQ5cOLWDjTfxJPiVLzc--Kfis") # Pre-filled for convenience
+    api_key = st.text_input("Google Places API Key", type="password", value=os.getenv("GOOGLE_PLACES_API_KEY", ""))
     st.info("Ensure the 'Places API' (Legacy) or 'Places API (New)' is enabled in Google Cloud.")
 
 # Main Input
