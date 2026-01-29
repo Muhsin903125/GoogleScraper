@@ -3,3 +3,4 @@ pandas
 streamlit
 python-dotenv
 openpyxl
+altair<5
