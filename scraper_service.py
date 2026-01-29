@@ -11,9 +11,9 @@ class ScraperService:
         except Exception as e:
             raise ValueError(f"Failed to initialize Google Maps Client: {e}")
 
-    def search_no_website_businesses(self, query, location, max_pages=3, progress_callback=None):
+    def search_businesses(self, query, location, max_pages=3, filter_no_website=True, min_rating=0.0, min_reviews=0, progress_callback=None):
         """
-        Searches for businesses and yields results that have NO website.
+        Searches for businesses and filters based on provided criteria.
         """
         search_query = f"{query} in {location}"
         if progress_callback:
@@ -29,16 +29,11 @@ class ScraperService:
                 progress_callback(f"Fetching page {page_count}...")
 
             try:
-                # Text Search (New) or Legacy? 
-                # googlemaps python client uses 'places' method for text search.
-                # Note: The client handles 'next_page_token' logic but requires waiting.
-                
                 results = self.gmaps.places(
                     query=search_query, 
                     page_token=next_page_token
                 )
             except googlemaps.exceptions.ApiError as e:
-                # Catch the specific Legacy API error
                 if "LegacyApiNotActivatedMapError" in str(e):
                     if progress_callback:
                         progress_callback("ERROR: 'Places API' (Legacy) is not enabled. Please enable it in Google Cloud Console.")
@@ -46,7 +41,6 @@ class ScraperService:
                 
                 if progress_callback:
                     progress_callback(f"API Error: {e}")
-                
                 break
             except Exception as e:
                 if progress_callback:
@@ -67,39 +61,51 @@ class ScraperService:
             for place in places:
                 place_id = place.get('place_id')
                 name = place.get('name')
+                rating = place.get('rating', 0)
+                user_ratings_total = place.get('user_ratings_total', 0)
+
+                # Early filter for rating and reviews (available in search results)
+                if rating < min_rating or user_ratings_total < min_reviews:
+                    continue
                 
                 try:
-                    # Fetch details to check website
-                    # fields: name, formatted_address, formatted_phone_number, website, url
+                    # Fetch details for website
                     details = self.gmaps.place(
                         place_id=place_id, 
-                        fields=['name', 'formatted_address', 'formatted_phone_number', 'website', 'url', 'international_phone_number']
+                        fields=['name', 'formatted_address', 'formatted_phone_number', 'website', 'url', 'international_phone_number', 'rating', 'user_ratings_total']
                     )
                     
                     result = details.get('result', {})
                     website = result.get('website')
                     
-                    if not website:
-                        if progress_callback:
-                            progress_callback(f"[MATCH] No Website: {name}")
-                        
-                        # WhatsApp Logic
-                        intl_phone = result.get('international_phone_number')
-                        wa_link = "N/A"
-                        if intl_phone:
-                            # Remove spaces, +, -, (, )
-                            clean_phone = ''.join(filter(str.isdigit, intl_phone))
-                            wa_link = f"https://wa.me/{clean_phone}"
+                    # Filter: No Website logic
+                    if filter_no_website and website:
+                        continue # Skip if it has a website but we want none
 
-                        leads.append({
-                            'Company Name': result.get('name'),
-                            'Address': result.get('formatted_address'),
-                            'Phone': result.get('formatted_phone_number'),
-                            'Intl Phone': intl_phone,
-                            'WhatsApp': wa_link,
-                            'Google Maps URL': result.get('url'),
-                            'Place ID': place_id
-                        })
+                    if progress_callback:
+                        match_msg = f"[MATCH] {name}" + (" (No Website)" if not website else "")
+                        progress_callback(match_msg)
+                    
+                    # WhatsApp Logic
+                    intl_phone = result.get('international_phone_number')
+                    wa_link = "N/A"
+                    if intl_phone:
+                        clean_phone = ''.join(filter(str.isdigit, intl_phone))
+                        wa_link = f"https://wa.me/{clean_phone}"
+
+                    leads.append({
+                        'Company Name': result.get('name'),
+                        'Address': result.get('formatted_address'),
+                        'Phone': result.get('formatted_phone_number'),
+                        'Intl Phone': intl_phone,
+                        'WhatsApp': wa_link,
+                        'Website': website if website else "None",
+                        'Rating': result.get('rating'),
+                        'Reviews': result.get('user_ratings_total'),
+                        'Google Maps URL': result.get('url'),
+                        'Place ID': place_id
+                    })
+
                     
                     # Rate limit slight delay
                     time.sleep(0.1)
