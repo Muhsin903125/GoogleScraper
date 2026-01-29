@@ -1,4 +1,15 @@
 import streamlit as st
+import sys
+
+# Compatibility shim for Python 3.13 (imghdr was removed)
+try:
+    import imghdr
+except ImportError:
+    import types
+    m = types.ModuleType("imghdr")
+    m.what = lambda filename, h=None: None
+    sys.modules["imghdr"] = m
+
 import pandas as pd
 from scraper_service import ScraperService
 import os
@@ -13,13 +24,53 @@ st.set_page_config(page_title="Dubai Business No-Website Scraper", page_icon="ðŸ
 
 # Constants
 UAE_LOCATIONS = {
-    "Dubai": ["Dubai Marina", "Deira", "Bur Dubai", "Jumeirah", "Downtown Dubai", "Al Quoz", "Business Bay", "Al Barsha", "JLT", "Sheikh Zayed Road"],
-    "Abu Dhabi": ["Al Reem Island", "Khalifa City", "Yas Island", "Corniche", "Al Maryah Island", "Mussafah", "Saadiyat Island"],
-    "Sharjah": ["Al Majaz", "Al Nahda", "Al Qasimia", "Al Khan", "Muwaileh"],
-    "Ajman": ["Al Nuaimia", "Al Rashidiya", "Al Jurf"],
-    "Ras Al Khaimah": ["Al Hamra Village", "Mina Al Arab"],
-    "Fujairah": ["Al Faseel", "Dibba"],
-    "Umm Al Quwain": ["Al Salamah"]
+    "Dubai": [
+        "Dubai Marina", "Deira", "Bur Dubai", "Jumeirah", "Downtown Dubai", 
+        "Al Quoz", "Business Bay", "Al Barsha", "JLT", "Sheikh Zayed Road",
+        "Mirdif", "Silicon Oasis", "Dubai Investment Park", "Discovery Gardens", 
+        "JVC (Jumeirah Village Circle)", "International City", "Al Nahda", 
+        "Karama", "Palm Jumeirah", "Satwa", "DIFC", "City Walk", "Damac Hills", 
+        "Arabian Ranches", "Dubai South", "Al Qusais", "Al Rashidiya",
+        "Al Safa", "Al Wasl", "Al Manara", "Umm Suqeim", "Al Bada'a", 
+        "Al Garhoud", "Al Twar", "Al Mizhar", "Al Warqaa", "Nad Al Sheba", 
+        "Meydan", "Dubai Hills Estate", "Town Square", "Remraam", "Mudon", 
+        "Al Furjan", "Jebel Ali Village", "Dubai Production City (IMPZ)", 
+        "Dubai Studio City", "Motor City", "Sports City", "Barsha Heights (Tecom)",
+        "Blue Waters Island", "Dubai Maritime City", "Nad Al Hammar"
+    ],
+    "Abu Dhabi": [
+        "Al Reem Island", "Khalifa City", "Yas Island", "Corniche", 
+        "Al Maryah Island", "Mussafah", "Saadiyat Island", "Al Zahiyah", 
+        "Al Khalidiyah", "Al Muroor", "Mohamed Bin Zayed City", "Al Samha", 
+        "Al Shamkha", "Masdar City", "Shakhbout City", "Baniyas",
+        "Al Mushrif", "Al Bateen", "Al Rowdah", "Al Wahda", "Al Karama", 
+        "Al Danah", "Al Raha Beach", "Al Reef", "Hydra Village", "Ghantoot", 
+        "Ruwais", "Madinat Zayed", "Al Maryah Island Area", "Officer's City"
+    ],
+    "Sharjah": [
+        "Al Majaz", "Al Nahda", "Al Qasimia", "Al Khan", "Muwaileh",
+        "Al Taawun", "Al Jaddaf", "Al Mamzar", "Sharjah Sustainable City", 
+        "Aljada", "University City", "Al Rahmaniya", "Al Suyoh",
+        "Al Jubail", "Al Layyeh", "Al Sharq", "Al Fisht", "Al Mirgab", 
+        "Al Heera", "Al Azra", "Al Goaz", "Al Ramaqiya", "Al Khezamia", 
+        "Al Tala'a", "Al Darari", "Al Shahba", "Al Khuzama", "Al Khaledia"
+    ],
+    "Ajman": [
+        "Al Nuaimia", "Al Rashidiya", "Al Jurf", "Al Mowaihat", 
+        "Ajman Downtown", "Hamidiya", "Al Rawda", "Garden City", 
+        "Emirates City", "Ajman Uptown", "Al Helio", "Al Tallah",
+        "Industrial Area 1", "Industrial Area 2", "Al Bustan"
+    ],
+    "Ras Al Khaimah": [
+        "Al Hamra Village", "Mina Al Arab", "Al Nakheel", 
+        "Al Dhait", "Al Jazirah Al Hamra", "Julphar", "Khor Khwair"
+    ],
+    "Fujairah": [
+        "Al Faseel", "Dibba", "Fujairah City Center", "Al Aqah", "Mirbah"
+    ],
+    "Umm Al Quwain": [
+        "Al Salamah", "Umm Al Quwain Marina", "Al Raudah", "Al Haweerah"
+    ]
 }
 
 BUSINESS_CATEGORIES = [

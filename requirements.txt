@@ -1,6 +1,6 @@
 googlemaps
 pandas
-streamlit
+streamlit>=1.40.0
 python-dotenv
 openpyxl
 altair<5
