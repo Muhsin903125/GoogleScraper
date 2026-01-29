@@ -11,7 +11,7 @@ class ScraperService:
         except Exception as e:
             raise ValueError(f"Failed to initialize Google Maps Client: {e}")
 
-    def search_businesses(self, query, location, max_pages=3, filter_no_website=True, min_rating=0.0, min_reviews=0, progress_callback=None):
+    def search_businesses(self, query, location, max_pages=3, filter_no_website=True, filter_has_phone=False, filter_has_whatsapp=False, filter_operational=True, min_rating=0.0, min_reviews=0, max_reviews=10000, progress_callback=None):
         """
         Searches for businesses and filters based on provided criteria.
         """
@@ -63,48 +63,72 @@ class ScraperService:
                 name = place.get('name')
                 rating = place.get('rating', 0)
                 user_ratings_total = place.get('user_ratings_total', 0)
+                business_status = place.get('business_status')
+
+                # Filter: Operational
+                if filter_operational and business_status != 'OPERATIONAL':
+                    continue
 
                 # Early filter for rating and reviews (available in search results)
-                if rating < min_rating or user_ratings_total < min_reviews:
+                if rating < min_rating or user_ratings_total < min_reviews or user_ratings_total > max_reviews:
                     continue
                 
                 try:
-                    # Fetch details for website
+                    # Fetch details for website and phone
                     details = self.gmaps.place(
                         place_id=place_id, 
-                        fields=['name', 'formatted_address', 'formatted_phone_number', 'website', 'url', 'international_phone_number', 'rating', 'user_ratings_total']
+                        fields=['name', 'formatted_address', 'formatted_phone_number', 'website', 'url', 'international_phone_number', 'rating', 'user_ratings_total', 'business_status']
                     )
                     
                     result = details.get('result', {})
                     website = result.get('website')
+                    phone = result.get('formatted_phone_number')
+                    intl_phone = result.get('international_phone_number')
                     
                     # Filter: No Website logic
                     if filter_no_website and website:
-                        continue # Skip if it has a website but we want none
+                        continue
+
+                    # Filter: Has Phone
+                    if filter_has_phone and not phone:
+                        continue
+
+                    # WhatsApp Logic & Filter
+                    wa_link = "N/A"
+                    is_whatsapp_mobile = False
+                    if intl_phone:
+                        # Clean phone for link
+                        clean_phone = ''.join(filter(str.isdigit, intl_phone))
+                        # Identify UAE mobile (+971 5x)
+                        # intl_phone format is usually +971 5x xxx xxxx
+                        if intl_phone.startswith('+971 5') or intl_phone.startswith('+9715'):
+                            is_whatsapp_mobile = True
+                            wa_link = f"https://wa.me/{clean_phone}"
+                        else:
+                            # Still create link if it looks like a mobile number from other regions or if user just wants the link
+                            wa_link = f"https://wa.me/{clean_phone}"
+
+                    if filter_has_whatsapp and not is_whatsapp_mobile:
+                        continue
 
                     if progress_callback:
-                        match_msg = f"[MATCH] {name}" + (" (No Website)" if not website else "")
+                        match_msg = f"[MATCH] {name}" + (" (No Website)" if not website else "") + (" (WhatsApp)" if is_whatsapp_mobile else "")
                         progress_callback(match_msg)
-                    
-                    # WhatsApp Logic
-                    intl_phone = result.get('international_phone_number')
-                    wa_link = "N/A"
-                    if intl_phone:
-                        clean_phone = ''.join(filter(str.isdigit, intl_phone))
-                        wa_link = f"https://wa.me/{clean_phone}"
 
                     leads.append({
                         'Company Name': result.get('name'),
                         'Address': result.get('formatted_address'),
-                        'Phone': result.get('formatted_phone_number'),
+                        'Phone': phone,
                         'Intl Phone': intl_phone,
                         'WhatsApp': wa_link,
                         'Website': website if website else "None",
                         'Rating': result.get('rating'),
                         'Reviews': result.get('user_ratings_total'),
+                        'Status': result.get('business_status'),
                         'Google Maps URL': result.get('url'),
                         'Place ID': place_id
                     })
+
 
                     
                     # Rate limit slight delay

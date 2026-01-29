@@ -90,9 +90,13 @@ with st.sidebar:
     st.info("Ensure the 'Places API' (Legacy) or 'Places API (New)' is enabled in Google Cloud.")
     
     st.header("🔍 Filters")
-    no_website_only = st.checkbox("No Website Set (Match only businesses without a website)", value=True)
+    no_website_only = st.checkbox("No Website Set", value=True, help="Match only businesses without a website")
+    has_phone_only = st.checkbox("Only with Phone Number", value=False)
+    has_whatsapp_only = st.checkbox("Has WhatsApp (Mobile)", value=False, help="Filters for UAE mobile numbers (+971 5x)")
+    operational_only = st.checkbox("Operational Only", value=True, help="Filter out closed businesses")
+    
     min_rating = st.slider("Minimum Rating", 0.0, 5.0, 0.0, 0.1)
-    min_reviews = st.number_input("Minimum Review Count", min_value=0, value=0)
+    review_range = st.slider("Review Count Range", 0, 1000, (0, 500))
 
 # Main Input
 col1, col2 = st.columns([1, 1])
@@ -172,8 +176,12 @@ if st.button("🚀 Start Search", type="primary"):
                             location=loc, 
                             max_pages=max_pages, 
                             filter_no_website=no_website_only,
+                            filter_has_phone=has_phone_only,
+                            filter_has_whatsapp=has_whatsapp_only,
+                            filter_operational=operational_only,
                             min_rating=min_rating,
-                            min_reviews=min_reviews,
+                            min_reviews=review_range[0],
+                            max_reviews=review_range[1],
                             progress_callback=log_callback
                         )
                         if not df.empty:
