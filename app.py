@@ -116,7 +116,11 @@ with col2:
     for emirate in selected_emirates:
         available_areas.extend(UAE_LOCATIONS.get(emirate, []))
     
-    selected_areas = st.multiselect("Areas (Optional - searches entire Emirate if empty)", options=sorted(available_areas))
+    col_area1, col_area2 = st.columns([1, 1])
+    with col_area1:
+        selected_areas = st.multiselect("Areas (Optional - searches entire Emirate if empty)", options=sorted(available_areas))
+    with col_area2:
+        custom_area_input = st.text_input("Additional Areas (Optional)", placeholder="e.g. Al Warqa 1")
 
 max_pages = st.number_input("Max Pages per combined search", min_value=1, max_value=50, value=2)
 
@@ -125,7 +129,9 @@ if st.button("🚀 Start Search", type="primary"):
     # Combine categories and custom query
     queries = selected_categories.copy()
     if custom_query:
-        queries.append(custom_query)
+        # Split by comma if user enters multiple formatted like "gym, cafe"
+        custom_queries = [x.strip() for x in custom_query.split(',') if x.strip()]
+        queries.extend(custom_queries)
 
     if not api_key:
         st.error("Please provide an API Key.")
@@ -136,14 +142,29 @@ if st.button("🚀 Start Search", type="primary"):
     else:
         # Construct search tasks
         search_locations = []
-        if selected_areas:
+        
+        # Combine selected areas and custom areas
+        all_selected_areas = selected_areas.copy()
+        if custom_area_input:
+             custom_areas = [x.strip() for x in custom_area_input.split(',') if x.strip()]
+             all_selected_areas.extend(custom_areas)
+             
+        if all_selected_areas:
             # Search each area with its Emirate for context
-            for area in selected_areas:
-                # Find which emirate this area belongs to
+            for area in all_selected_areas:
+                # Try to find which emirate this area belongs to for better context
+                # If custom area, we might just append the first selected emirate or just the area itself
+                found_emirate = False
                 for emirate, areas in UAE_LOCATIONS.items():
                     if area in areas:
                         search_locations.append(f"{area}, {emirate}")
+                        found_emirate = True
                         break
+                
+                if not found_emirate:
+                    # If it's a custom area or not found in our list, append with the first selected emirate
+                    # This is a best-effort guess for context
+                    search_locations.append(f"{area}, {selected_emirates[0]}")
         else:
             # Search entire Emirates
             search_locations = selected_emirates
