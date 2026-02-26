@@ -96,7 +96,7 @@ with st.sidebar:
     operational_only = st.checkbox("Operational Only", value=True, help="Filter out closed businesses")
     
     min_rating = st.slider("Minimum Rating", 0.0, 5.0, 0.0, 0.1)
-    review_range = st.slider("Review Count Range", 0, 1000, (0, 500))
+    review_range = st.slider("Review Count Range", 0, 25000, (0, 500))
 
 # Main Input
 col1, col2 = st.columns([1, 1])
