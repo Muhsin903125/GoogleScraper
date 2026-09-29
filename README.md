@@ -95,14 +95,14 @@ UAE mobile number format. `--whatsapp-possible` uses the same format check and
 means no email can be found. Filtering may produce an empty file with headers.
 
 For missing website URLs, optional official search discovery needs **both**
-`BRAVE_SEARCH_API_KEY` and `TYPESAFE_API_KEY` in local environment variables.
-Brave Search provides candidates; TypeSafe judges whether a single candidate
+`SERPAPI_API_KEY` and `TYPESAFE_API_KEY` in local environment variables.
+SerpApi Google Search provides candidates; TypeSafe judges whether a single candidate
 matches the named company and area. An ambiguous answer leaves the site blank.
 Neither service is used without its key; the script does not guess domains or
 scrape a search-results page. Search/API calls may incur fees; set your own
 limits/budgets before enabling keys. The `--limit` argument caps this run to
-1-100 rows (default 25). Search result retention rights depend on your Brave
-plan. Keep keys out of the input CSV and version control.
+1-100 rows (default 25). SerpApi Free currently allows 250 successful searches per month. Check your
+account limits before each run and review SerpApi terms for result use. Keep keys out of the input CSV and version control.
 
 Sites requiring JavaScript can optionally use `--playwright` after installing
 `playwright` and Chromium (`pip install playwright; playwright install chromium`).
