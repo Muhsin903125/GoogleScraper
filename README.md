@@ -116,3 +116,23 @@ Synthetic unit tests (no paid API calls or live website fetches):
 ```bash
 python -m unittest -v test_lead_enrichment.py
 ```
+
+## Free-text search of your local lead CSV
+
+After importing or enriching an export-authorized CSV, search the data by
+company name, location, business type, or category in one query. Terms can
+match across separate columns, case-insensitively; put quotes around a phrase.
+This is **local filtering**, not a new web/Google Places search or discovery
+of businesses absent from the CSV.
+
+```bash
+python lead_search.py enriched.csv 'Dubai cafe' --output-csv dubai-cafes.csv
+python -m unittest -v test_lead_search.py
+```
+
+Recognized headers include `Company Name`, `Location`, `Area`, `City`, `Emirate`,
+`Address`, `Business Type`, `Business Category`, `Category`, `Categories`,
+`Keywords`, and `Description`. Other fields are preserved in output but not
+searched (for example, private contact information). The original Streamlit
+app's "Additional Keywords" box already feeds the existing Places search and
+is unchanged; this new feature searches the data you supply locally.

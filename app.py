@@ -12,6 +12,7 @@ except ImportError:
 
 import pandas as pd
 from scraper_service import ScraperService
+from lead_search import search_rows
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -242,3 +243,29 @@ if st.button("🚀 Start Search", type="primary"):
         except Exception as e:
             st.error(f"An error occurred: {e}")
             st.code(str(e))
+
+
+# Separate local CSV search. This does not invoke Google Places or export its
+# results. Upload only a business list you have rights to process and export.
+with st.expander("Search your own business-list CSV (local, no API key)"):
+    uploaded_leads = st.file_uploader("Upload an authorized business CSV", type=["csv"], key="local_leads")
+    free_text_query = st.text_input("Search location, business type, category or name", key="local_lead_query", placeholder="e.g. Dubai cafe")
+    if uploaded_leads is not None:
+        try:
+            local_df = pd.read_csv(uploaded_leads, dtype=str, keep_default_na=False)
+            if len(local_df) > 10000:
+                st.error("This view accepts up to 10,000 rows. Narrow your input CSV first.")
+            else:
+                matching_rows = search_rows(local_df.to_dict("records"), free_text_query)
+                filtered_df = pd.DataFrame(matching_rows, columns=local_df.columns)
+                st.caption(f"{len(filtered_df)} matches out of {len(local_df)} rows")
+                st.dataframe(filtered_df)
+                st.download_button(
+                    "Download matching rows",
+                    data=filtered_df.to_csv(index=False).encode("utf-8"),
+                    file_name="matching-authorized-leads.csv",
+                    mime="text/csv",
+                    key="download_local_leads",
+                )
+        except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as exc:
+            st.error(f"Could not read this CSV: {exc}")
