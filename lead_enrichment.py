@@ -172,8 +172,9 @@ def enrich_row(row: dict[str, str], session: requests.Session, brave_key: str = 
             status = "search candidate judged likely" if website else "no unambiguous match"
         except (requests.RequestException, ValueError, KeyError):
             status = "search unavailable"
-    result["Website Found"] = website if website and public_url(website) else ""
-    result["Enrichment Status"] = status
+    safe_website = public_url(website) if website else None
+    result["Website Found"] = safe_website or ""
+    result["Enrichment Status"] = status if safe_website or not website else "unsafe website URL"
     result.update({"Email": row.get("Email", ""), "Mobile": mobile_number(row.get("Mobile") or row.get("Intl Phone") or row.get("Phone") or ""), "Social URLs": row.get("Social URLs", ""), "Contact Source URL": row.get("Contact Source URL", "")})
     if not result["Website Found"]:
         return result
