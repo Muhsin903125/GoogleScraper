@@ -136,3 +136,19 @@ Recognized headers include `Company Name`, `Location`, `Area`, `City`, `Emirate`
 searched (for example, private contact information). The original Streamlit
 app's "Additional Keywords" box already feeds the existing Places search and
 is unchanged; this new feature searches the data you supply locally.
+
+### Local CSV filters
+
+The Streamlit local CSV panel also offers category/type, emirate/city and
+area/location selections drawn from the uploaded file; company-name contains;
+website, phone, email and UAE mobile presence; and optional rating/review
+bounds. The fields must exist in the CSV: absent ratings and review counts do
+not pass active numeric bounds. Mobile/WhatsApp-possible checks only supplied
+fields or the number format, never an active WhatsApp account. These controls
+filter only the uploaded CSV, not the Google Places query or its export.
+
+The Places query's Business Categories menu has a broader list of common UAE
+business phrases. It is a set of suggestions, not an exhaustive Google Places
+type list. Enter any missing category in the separate "Other business
+categories" field, comma-separated. Each phrase is used as a search query;
+this does not change the existing Places export behavior or its data rights.
