@@ -13,6 +13,8 @@ except ImportError:
 import pandas as pd
 from scraper_service import ScraperService
 from lead_search import search_rows
+from lead_filters import filter_rows, facet_values
+from category_queries import category_queries
 import os
 from datetime import datetime
 from dotenv import load_dotenv
@@ -74,15 +76,11 @@ UAE_LOCATIONS = {
     ]
 }
 
-BUSINESS_CATEGORIES = [
-    "Gyms", "Cafes", "Mechanics", "Dentists", "Real Estate Agencies", "Beauty Salons", 
-    "Cleaning Services", "Restaurants", "Pharmacies", "Supermarkets", "Carpentry", 
-    "Interior Design", "Flower Shops", "Pet Shops", "Yoga Studios", "Nurseries", 
-    "Tailors", "Laundry Services", "Car Rentals", "Plumbers", "Electricians", 
-    "Printing Services", "Optical Shops", "Medical Centers", "Vet Clinics", 
-    "Gifting Shops", "Bakeries", "Barbershops", "Jewelry Stores", "IT Support",
-    "Legal Services", "Marketing Agencies", "Accounting Firms"
-]
+# Search phrases, not a claim to enumerate every Google Places type.
+BUSINESS_CATEGORIES = sorted(set([
+    "Accounting Firms", "Advertising Agencies", "Air Conditioning Repair", "Auto Body Shops", "Auto Parts Stores", "Bakeries", "Banks", "Baqala", "Barbershops", "Beauty Salons", "Bike Shops", "Bookstores", "Building Materials Stores", "Cafes", "Cafeterias", "Car Dealerships", "Car Rentals", "Car Washes", "Carpentry", "Catering Services", "Childcare Centers", "Cleaning Services", "Clinics", "Coffee Shops", "Computer Repair", "Construction Companies", "Convenience Stores", "Courier Services", "Dental Clinics", "Dentists", "Digital Marketing Agencies", "Driving Schools", "Dry Cleaners", "Electricians", "Electronics Stores", "Event Planners", "Fashion Boutiques", "Fitness Centers", "Flower Shops", "Furniture Stores", "Garages", "Gift Shops", "Grocery Stores", "Gyms", "Hair Salons", "Hardware Stores", "Home Maintenance", "Hotels", "Insurance Brokers", "Interior Design", "Jewelry Stores", "Kindergartens", "Laundries", "Legal Services", "Logistics Companies", "Marketing Agencies", "Massage Centers", "Medical Centers", "Mechanics", "Mobile Phone Repair", "Nurseries", "Optical Shops", "Perfume Shops", "Pet Grooming", "Pet Shops", "Pharmacies", "Photography Studios", "Physiotherapy Clinics", "Plumbers", "Printing Services", "Real Estate Agencies", "Restaurants", "Schools", "Security Companies", "Shipping Companies", "Spas", "Sports Shops", "Supermarkets", "Tailors", "Travel Agencies", "Typing Centers", "Vet Clinics", "Warehouses", "Yoga Studios",
+]), key=str.casefold)
+
 
 # Sidebar for Config
 with st.sidebar:
@@ -106,8 +104,9 @@ with col1:
     selected_categories = st.multiselect(
         "Business Categories", 
         options=BUSINESS_CATEGORIES,
-        placeholder="Select or type categories..."
+        placeholder="Choose suggested categories..."
     )
+    custom_categories = st.text_input("Other business categories (optional)", placeholder="Any missing category, comma-separated")
     custom_query = st.text_input("Additional Keywords (Optional)", placeholder="e.g. specialized niches")
 
 with col2:
@@ -128,11 +127,7 @@ max_pages = st.number_input("Max Pages per combined search", min_value=1, max_va
 # Search Button
 if st.button("🚀 Start Search", type="primary"):
     # Combine categories and custom query
-    queries = selected_categories.copy()
-    if custom_query:
-        # Split by comma if user enters multiple formatted like "gym, cafe"
-        custom_queries = [x.strip() for x in custom_query.split(',') if x.strip()]
-        queries.extend(custom_queries)
+    queries = category_queries(selected_categories, custom_categories + "," + custom_query)
 
     if not api_key:
         st.error("Please provide an API Key.")
@@ -257,6 +252,36 @@ with st.expander("Search your own business-list CSV (local, no API key)"):
                 st.error("This view accepts up to 10,000 rows. Narrow your input CSV first.")
             else:
                 matching_rows = search_rows(local_df.to_dict("records"), free_text_query)
+                st.markdown("**Filter this CSV**")
+                st.caption("Filters use only columns present in your uploaded CSV. Mobile means a supplied mobile or UAE mobile-number format, not a verified WhatsApp account.")
+                facet_cols = st.columns(3)
+                with facet_cols[0]:
+                    selected_categories = st.multiselect("CSV category/type", facet_values(matching_rows, "Business Category", "Category", "Categories", "Business Type"), key="csv_categories")
+                with facet_cols[1]:
+                    selected_emirates = st.multiselect("CSV emirate/city", facet_values(matching_rows, "Emirate", "City"), key="csv_emirates")
+                with facet_cols[2]:
+                    selected_areas = st.multiselect("CSV area/location", facet_values(matching_rows, "Area", "Location"), key="csv_areas")
+                presence_cols = st.columns(4)
+                labels = (("Website", "website"), ("Phone", "phone"), ("UAE mobile (format only)", "mobile"), ("Email", "email"))
+                presence = {}
+                for col, (label, key) in zip(presence_cols, labels):
+                    with col:
+                        presence[key] = st.selectbox(label, ["Any", "Has", "Missing"], key=f"csv_{key}")
+                name_keyword = st.text_input("Company name contains", key="csv_name")
+                numeric = st.columns(4)
+                numeric_labels = (("Min rating", "min_rating", 0.0, 5.0, 0.0, 0.1),
+                                  ("Max rating", "max_rating", 0.0, 5.0, 5.0, 0.1),
+                                  ("Min reviews", "min_reviews", 0, 1000000, 0, 1),
+                                  ("Max reviews", "max_reviews", 0, 1000000, 1000000, 1))
+                bounds = {}
+                for col, (label, key, floor, ceiling, default, step) in zip(numeric, numeric_labels):
+                    with col:
+                        enabled = st.checkbox(label, key=f"csv_use_{key}")
+                        bounds[key] = st.number_input(label + " value", min_value=floor, max_value=ceiling,
+                                                      value=default, step=step, key=f"csv_{key}") if enabled else None
+                matching_rows = filter_rows(matching_rows, categories=selected_categories,
+                                            emirates=selected_emirates, areas=selected_areas,
+                                            name_keyword=name_keyword, **presence, **bounds)
                 filtered_df = pd.DataFrame(matching_rows, columns=local_df.columns)
                 st.caption(f"{len(filtered_df)} matches out of {len(local_df)} rows")
                 st.dataframe(filtered_df)
