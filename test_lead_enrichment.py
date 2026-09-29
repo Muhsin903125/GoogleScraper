@@ -42,6 +42,27 @@ class EnrichmentTests(unittest.TestCase):
             self.assertEqual(rows[0]['Email'], 'hello@example.com')
             self.assertEqual(rows[0]['WhatsApp Possible'], 'yes')
 
+    def test_serpapi_candidates_parse_and_limit(self):
+        fake = Mock()
+        fake.get.return_value.json.return_value = {'organic_results': [
+            {'title': 'Acme', 'link': 'https://acme.example', 'snippet': 'Official site'},
+            {'title': 'Directory', 'link': 'https://directory.example', 'snippet': 'Not necessarily official'},
+        ]}
+        candidates = lead.search_candidates('Acme', 'Dubai', 'test-key', fake)
+        self.assertEqual(candidates[0], {'title': 'Acme', 'url': 'https://acme.example', 'description': 'Official site'})
+        self.assertEqual(len(candidates), 2)
+        params = fake.get.call_args.kwargs['params']
+        self.assertEqual(params['engine'], 'google')
+        self.assertEqual(params['num'], 5)
+        self.assertEqual(params['api_key'], 'test-key')
+        self.assertEqual(fake.get.call_args.args[0], 'https://serpapi.com/search.json')
+
+    def test_serpapi_error_does_not_guess_website(self):
+        fake = Mock()
+        fake.get.return_value.json.return_value = {'error': 'quota exceeded'}
+        with self.assertRaises(ValueError):
+            lead.search_candidates('Acme', 'Dubai', 'test-key', fake)
+
     def test_typesafe_ambiguous_candidates_not_selected(self):
         fake = Mock()
         fake.post.return_value.json.return_value = {'answers': {'candidate_0': {'type':'noul','noul':.97}, 'candidate_1': {'type':'noul','noul':.97}}}
