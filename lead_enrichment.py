@@ -1,7 +1,7 @@
 """Enrich an export-authorized business CSV, independent of Google Places.
 
 No Google Maps API data is fetched or exported by this module. Search is optional
-and uses an official API, never a scraped search-results page.
+and uses SerpApi, never a scraped search-results page.
 """
 from __future__ import annotations
 
@@ -137,9 +137,12 @@ def extract(html: str, url: str) -> dict[str, str]:
 def search_candidates(name: str, area: str, key: str, session: requests.Session) -> list[dict]:
     if not key:
         return []
-    response = session.get("https://api.search.brave.com/res/v1/web/search", params={"q": f'"{name}" {area} official site', "count": 5}, headers={"X-Subscription-Token": key}, timeout=12)
+    response = session.get("https://serpapi.com/search.json", params={"api_key": key, "engine": "google", "q": f'"{name}" {area} official site', "num": 5, "gl": "ae", "hl": "en"}, timeout=12)
     response.raise_for_status()
-    return [{"title": item.get("title", "")[:180], "url": item.get("url", ""), "description": item.get("description", "")[:400]} for item in response.json().get("web", {}).get("results", [])[:5]]
+    data = response.json()
+    if data.get("error"):
+        raise ValueError("SerpApi search failed")
+    return [{"title": item.get("title", "")[:180], "url": item.get("link", ""), "description": item.get("snippet", "")[:400]} for item in data.get("organic_results", [])[:5]]
 
 
 def typesafe_match(name: str, area: str, candidates: list[dict], key: str, session: requests.Session) -> str:
@@ -159,15 +162,15 @@ def typesafe_match(name: str, area: str, candidates: list[dict], key: str, sessi
     return accepted[0] if len(accepted) == 1 else ""
 
 
-def enrich_row(row: dict[str, str], session: requests.Session, brave_key: str = "", typesafe_key: str = "", use_playwright: bool = False) -> dict[str, str]:
+def enrich_row(row: dict[str, str], session: requests.Session, serpapi_key: str = "", typesafe_key: str = "", use_playwright: bool = False) -> dict[str, str]:
     result = dict(row)
     website = (row.get("Website") or row.get("Website URL") or "").strip()
     if website.lower() in ("none", "n/a", "null"):
         website = ""
     status = "supplied website" if website else "website not found"
-    if not website and brave_key and typesafe_key and row.get("Company Name"):
+    if not website and serpapi_key and typesafe_key and row.get("Company Name"):
         try:
-            candidates = search_candidates(row["Company Name"], row.get("Address", ""), brave_key, session)
+            candidates = search_candidates(row["Company Name"], row.get("Address", ""), serpapi_key, session)
             website = typesafe_match(row["Company Name"], row.get("Address", ""), candidates, typesafe_key, session)
             status = "search candidate judged likely" if website else "no unambiguous match"
         except (requests.RequestException, ValueError, KeyError):
@@ -227,13 +230,13 @@ def main() -> None:
         rows = [row for _, row in zip(range(args.limit), reader)]
         fields = list(dict.fromkeys(reader.fieldnames + ["Website Found", "Enrichment Status", "Email", "Mobile", "Social URLs", "Contact Source URL", "WhatsApp Possible"]))
     session = requests.Session()
-    brave_key = os.getenv("BRAVE_SEARCH_API_KEY", "")
+    serpapi_key = os.getenv("SERPAPI_API_KEY", "")
     typesafe_key = os.getenv("TYPESAFE_API_KEY", "")
     with open(args.output_csv, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields)
         writer.writeheader()
         for row in rows:
-            result = enrich_row(row, session, brave_key, typesafe_key, args.playwright)
+            result = enrich_row(row, session, serpapi_key, typesafe_key, args.playwright)
             result["WhatsApp Possible"] = "yes" if result["Mobile"] else "no"
             if (args.has_email and not result["Email"]) or (args.has_mobile and not result["Mobile"]) or (args.whatsapp_possible and result["WhatsApp Possible"] != "yes"):
                 continue
