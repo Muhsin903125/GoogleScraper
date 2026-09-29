@@ -4,3 +4,6 @@ streamlit>=1.40.0
 python-dotenv
 openpyxl
 altair<5
+requests>=2.31
+beautifulsoup4>=4.12
+# Optional for JavaScript-rendered sites: pip install playwright && playwright install chromium

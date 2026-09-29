@@ -66,3 +66,53 @@ GOOGLE_PLACES_API_KEY=your_api_key_here
 ---
 
 _Created by [Muhsin](https://github.com/Muhsin903125)_
+
+## Optional enrichment of a permitted business CSV
+
+`lead_enrichment.py` is a separate CSV-in/CSV-out workflow. It does **not** call
+Google Places or export its results. Use it with a business list that you have
+permission to process and export. The existing Places-based lead-export code is
+not extended by this feature: Google Maps Platform terms restrict exporting
+Places content and using it for advertising/lead datasets. Review the current
+terms and your data rights before using the older feature:
+https://cloud.google.com/maps-platform/terms
+
+Your input needs a `Company Name` column. Optional columns are `Website` (or
+`Website URL`), `Address`, `Phone`, `Intl Phone`, `Mobile`, and `Email`. For an
+already known company website, no API key is needed:
+
+```bash
+python lead_enrichment.py authorized_businesses.csv enriched.csv --has-email --has-mobile --limit 25
+```
+
+The script visits at most the homepage and one linked contact page per row,
+respects robots.txt, refuses local/private hosts, rate-limits requests, and
+records the source URL. Public emails/phones/social links are best-effort
+extractions, not verified ownership or consent for outreach. `--has-email`
+filters rows with an actual extracted or supplied email; `--has-mobile` checks
+UAE mobile number format. `--whatsapp-possible` uses the same format check and
+**does not verify** an active WhatsApp account. A missing company website often
+means no email can be found. Filtering may produce an empty file with headers.
+
+For missing website URLs, optional official search discovery needs **both**
+`BRAVE_SEARCH_API_KEY` and `TYPESAFE_API_KEY` in local environment variables.
+Brave Search provides candidates; TypeSafe judges whether a single candidate
+matches the named company and area. An ambiguous answer leaves the site blank.
+Neither service is used without its key; the script does not guess domains or
+scrape a search-results page. Search/API calls may incur fees; set your own
+limits/budgets before enabling keys. The `--limit` argument caps this run to
+1-100 rows (default 25). Search result retention rights depend on your Brave
+plan. Keep keys out of the input CSV and version control.
+
+Sites requiring JavaScript can optionally use `--playwright` after installing
+`playwright` and Chromium (`pip install playwright; playwright install chromium`).
+This loads only the target site's document, not images/scripts/subresources,
+so some JavaScript-rendered contact details will not appear; use the default
+HTTP mode first. The script will not bypass access blocks. No email is supplied
+by Google Places. Do not call a number "WhatsApp verified" based on its shape.
+
+Synthetic unit tests (no paid API calls or live website fetches):
+
+```bash
+python -m unittest -v test_lead_enrichment.py
+```
